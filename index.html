@@ -2,9 +2,450 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Hello from Claude Code</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅の記録マップ</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --panel: #ffffff;
+    --border: #ddd6c8;
+    --accent: #d1603d;
+    --text: #2c2a26;
+    --muted: #8a8375;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 16px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 {
+    font-size: 1.2rem;
+    margin: 0;
+  }
+  header .stats {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .layout {
+    display: flex;
+    height: calc(100vh - 61px);
+    min-height: 500px;
+  }
+  #map {
+    flex: 1;
+    height: 100%;
+  }
+  aside {
+    width: 340px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+    flex-shrink: 0;
+  }
+  .upload-box {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .upload-box label {
+    display: inline-block;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .upload-box input[type=file] { display: none; }
+  .upload-box p {
+    margin: 8px 0 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  #status {
+    font-size: 0.8rem;
+    color: var(--accent);
+    min-height: 1.2em;
+    margin-bottom: 10px;
+  }
+  .entry {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .entry img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .entry .meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .entry .place {
+    font-weight: bold;
+    font-size: 0.85rem;
+  }
+  .entry .date {
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+  .entry .del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0;
+    margin-top: 4px;
+  }
+  .entry .del:hover { color: var(--accent); }
+  .popup-photo {
+    max-width: 180px;
+    max-height: 180px;
+    display: block;
+    border-radius: 4px;
+    margin-bottom: 4px;
+  }
+  #pick-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+  }
+  #pick-modal.open { display: flex; }
+  .pick-panel {
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 16px;
+    width: min(500px, 90vw);
+  }
+  .pick-panel p {
+    font-size: 0.85rem;
+    margin-top: 0;
+  }
+  #pick-map {
+    height: 300px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .pick-panel .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .pick-panel button {
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  .pick-panel button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .pick-panel button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .empty-hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 20px 0;
+  }
+</style>
 </head>
 <body>
-<h1>Hello, Claude Code</h1>
+<header>
+  <h1>旅の記録マップ</h1>
+  <div class="stats" id="stats">訪問地 0 件</div>
+</header>
+
+<div class="layout">
+  <div id="map"></div>
+  <aside>
+    <div class="upload-box">
+      <label for="photo-input">写真を選んでアップロード</label>
+      <input type="file" id="photo-input" accept="image/*" multiple>
+      <p>写真のEXIF位置情報から自動で場所を記録します。<br>位置情報がない写真は地図上で場所を選べます。</p>
+    </div>
+    <div id="status"></div>
+    <div id="entry-list"></div>
+  </aside>
+</div>
+
+<div id="pick-modal">
+  <div class="pick-panel">
+    <p id="pick-desc">この写真には位置情報がありませんでした。地図をクリックして訪問地を指定してください。</p>
+    <div id="pick-map"></div>
+    <div class="actions">
+      <button id="pick-cancel">スキップ</button>
+      <button id="pick-confirm" class="primary" disabled>この場所に登録</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const DB_NAME = "travel-map-db";
+  const STORE = "entries";
+  let db;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const database = req.result;
+        if (!database.objectStoreNames.contains(STORE)) {
+          database.createObjectStore(STORE, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function tx(mode) {
+    return db.transaction(STORE, mode).objectStore(STORE);
+  }
+
+  function addEntry(entry) {
+    return new Promise((resolve, reject) => {
+      const req = tx("readwrite").add(entry);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function deleteEntry(id) {
+    return new Promise((resolve, reject) => {
+      const req = tx("readwrite").delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function getAllEntries() {
+    return new Promise((resolve, reject) => {
+      const req = tx("readonly").getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // ---- 地図 ----
+  const map = L.map("map").setView([36.2048, 138.2529], 5); // 日本全体
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map);
+
+  const markers = new Map(); // id -> marker
+
+  function addMarkerForEntry(entry) {
+    const marker = L.marker([entry.lat, entry.lng]).addTo(map);
+    const dateStr = entry.date ? new Date(entry.date).toLocaleDateString("ja-JP") : "";
+    const url = URL.createObjectURL(entry.photo);
+    marker.bindPopup(
+      `<img class="popup-photo" src="${url}"><div>${dateStr}</div>`
+    );
+    markers.set(entry.id, marker);
+  }
+
+  function removeMarker(id) {
+    const m = markers.get(id);
+    if (m) {
+      map.removeLayer(m);
+      markers.delete(id);
+    }
+  }
+
+  // ---- 一覧UI ----
+  const listEl = document.getElementById("entry-list");
+  const statsEl = document.getElementById("stats");
+  const statusEl = document.getElementById("status");
+
+  async function refreshList() {
+    const entries = await getAllEntries();
+    entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    statsEl.textContent = `訪問地 ${entries.length} 件`;
+    listEl.innerHTML = "";
+    if (entries.length === 0) {
+      listEl.innerHTML = '<div class="empty-hint">まだ記録がありません。写真をアップロードしてみましょう。</div>';
+      return;
+    }
+    for (const entry of entries) {
+      const url = URL.createObjectURL(entry.photo);
+      const dateStr = entry.date ? new Date(entry.date).toLocaleDateString("ja-JP") : "日時不明";
+      const div = document.createElement("div");
+      div.className = "entry";
+      div.innerHTML = `
+        <img src="${url}" alt="訪問地の写真">
+        <div class="meta">
+          <div class="place">${entry.lat.toFixed(3)}, ${entry.lng.toFixed(3)}</div>
+          <div class="date">${dateStr}</div>
+          <button class="del" data-id="${entry.id}">削除</button>
+        </div>
+      `;
+      div.querySelector("img").addEventListener("click", () => {
+        map.setView([entry.lat, entry.lng], 12);
+        markers.get(entry.id)?.openPopup();
+      });
+      div.querySelector(".del").addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await deleteEntry(entry.id);
+        removeMarker(entry.id);
+        refreshList();
+      });
+      listEl.appendChild(div);
+    }
+  }
+
+  // ---- 手動位置選択モーダル ----
+  const modal = document.getElementById("pick-modal");
+  const confirmBtn = document.getElementById("pick-confirm");
+  const cancelBtn = document.getElementById("pick-cancel");
+  let pickMap, pickMarker, pickResolve;
+
+  function openPickModal() {
+    modal.classList.add("open");
+    if (!pickMap) {
+      pickMap = L.map("pick-map").setView([36.2048, 138.2529], 5);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+      }).addTo(pickMap);
+      pickMap.on("click", (e) => {
+        if (pickMarker) pickMap.removeLayer(pickMarker);
+        pickMarker = L.marker(e.latlng).addTo(pickMap);
+        confirmBtn.disabled = false;
+        confirmBtn.dataset.lat = e.latlng.lat;
+        confirmBtn.dataset.lng = e.latlng.lng;
+      });
+    }
+    setTimeout(() => pickMap.invalidateSize(), 50);
+  }
+
+  function closePickModal() {
+    modal.classList.remove("open");
+    confirmBtn.disabled = true;
+    if (pickMarker) {
+      pickMap.removeLayer(pickMarker);
+      pickMarker = null;
+    }
+  }
+
+  function pickLocation() {
+    return new Promise((resolve) => {
+      pickResolve = resolve;
+      openPickModal();
+    });
+  }
+
+  confirmBtn.addEventListener("click", () => {
+    const lat = parseFloat(confirmBtn.dataset.lat);
+    const lng = parseFloat(confirmBtn.dataset.lng);
+    closePickModal();
+    pickResolve({ lat, lng });
+  });
+
+  cancelBtn.addEventListener("click", () => {
+    closePickModal();
+    pickResolve(null);
+  });
+
+  // ---- 写真アップロード処理 ----
+  const photoInput = document.getElementById("photo-input");
+
+  photoInput.addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    photoInput.value = "";
+    let added = 0;
+    for (const file of files) {
+      statusEl.textContent = `処理中: ${file.name}`;
+      let coords = null;
+      let dateTaken = null;
+      try {
+        const gps = await exifr.gps(file);
+        if (gps && typeof gps.latitude === "number") {
+          coords = { lat: gps.latitude, lng: gps.longitude };
+        }
+        const exifData = await exifr.parse(file, ["DateTimeOriginal"]);
+        if (exifData && exifData.DateTimeOriginal) {
+          dateTaken = new Date(exifData.DateTimeOriginal).getTime();
+        }
+      } catch (err) {
+        // EXIF読み取り失敗時は位置情報なしとして扱う
+      }
+
+      if (!coords) {
+        coords = await pickLocation();
+      }
+      if (!coords) {
+        statusEl.textContent = `${file.name} はスキップしました`;
+        continue;
+      }
+
+      const entry = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        photo: file,
+        lat: coords.lat,
+        lng: coords.lng,
+        date: dateTaken || file.lastModified || Date.now(),
+        createdAt: Date.now(),
+      };
+      await addEntry(entry);
+      addMarkerForEntry(entry);
+      added++;
+    }
+    statusEl.textContent = added > 0 ? `${added} 件を登録しました` : "";
+    refreshList();
+  });
+
+  // ---- 初期化 ----
+  (async function init() {
+    db = await openDB();
+    const entries = await getAllEntries();
+    for (const entry of entries) {
+      addMarkerForEntry(entry);
+    }
+    if (entries.length > 0) {
+      const group = L.featureGroup([...markers.values()]);
+      map.fitBounds(group.getBounds().pad(0.2));
+    }
+    refreshList();
+  })();
+})();
+</script>
 </body>
 </html>
