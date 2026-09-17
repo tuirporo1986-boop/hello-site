@@ -266,7 +266,7 @@
 
   // ---- 地図 ----
   const map = L.map("map").setView([36.2048, 138.2529], 5); // 日本全体
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
     maxZoom: 19,
   }).addTo(map);
@@ -342,7 +342,7 @@
     modal.classList.add("open");
     if (!pickMap) {
       pickMap = L.map("pick-map").setView([36.2048, 138.2529], 5);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors",
       }).addTo(pickMap);
       pickMap.on("click", (e) => {
