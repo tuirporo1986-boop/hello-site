@@ -8,3 +8,6 @@ node_modules/
 
 # Environment variables
 .env
+
+# Claude Code local settings
+.claude/settings.json
