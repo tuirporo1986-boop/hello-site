@@ -2,449 +2,762 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>旅の記録マップ</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>不思議のダンジョン風ローグライク</title>
 <style>
   :root {
-    --bg: #f5f3ee;
-    --panel: #ffffff;
-    --border: #ddd6c8;
-    --accent: #d1603d;
-    --text: #2c2a26;
-    --muted: #8a8375;
+    --bg: #14100c;
+    --panel: #241d15;
+    --panel-light: #2f261a;
+    --border: #4a3a24;
+    --accent: #c9a24b;
+    --accent-dim: #8a6f34;
+    --text: #ecdfc4;
+    --muted: #a5936f;
+    --hp-good: #4caf7d;
+    --hp-mid: #d9a63c;
+    --hp-bad: #c0392b;
+    --wall: #100c08;
+    --floor: #3a3226;
+    --stairs: #5b4a2a;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
     margin: 0;
-    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    height: 100%;
     background: var(--bg);
     color: var(--text);
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
   }
-  header {
-    padding: 16px 20px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ---- タイトル画面 ---- */
+  #screen-title {
+    min-height: 100vh;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  header h1 {
-    font-size: 1.2rem;
-    margin: 0;
-  }
-  header .stats {
-    font-size: 0.85rem;
-    color: var(--muted);
-  }
-  .layout {
-    display: flex;
-    height: calc(100vh - 61px);
-    min-height: 500px;
-  }
-  #map {
-    flex: 1;
-    height: 100%;
-  }
-  aside {
-    width: 340px;
-    background: var(--panel);
-    border-left: 1px solid var(--border);
-    overflow-y: auto;
-    padding: 16px;
-    flex-shrink: 0;
-  }
-  .upload-box {
-    border: 2px dashed var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    text-align: center;
-    margin-bottom: 16px;
-  }
-  .upload-box label {
-    display: inline-block;
-    padding: 8px 16px;
-    background: var(--accent);
-    color: white;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  .upload-box input[type=file] { display: none; }
-  .upload-box p {
-    margin: 8px 0 0;
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-  #status {
-    font-size: 0.8rem;
-    color: var(--accent);
-    min-height: 1.2em;
-    margin-bottom: 10px;
-  }
-  .entry {
-    display: flex;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .entry img {
-    width: 64px;
-    height: 64px;
-    object-fit: cover;
-    border-radius: 6px;
-    flex-shrink: 0;
-    cursor: pointer;
-  }
-  .entry .meta {
-    flex: 1;
-    min-width: 0;
-  }
-  .entry .place {
-    font-weight: bold;
-    font-size: 0.85rem;
-  }
-  .entry .date {
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-  .entry .del {
-    background: none;
-    border: none;
-    color: var(--muted);
-    cursor: pointer;
-    font-size: 0.75rem;
-    padding: 0;
-    margin-top: 4px;
-  }
-  .entry .del:hover { color: var(--accent); }
-  .popup-photo {
-    max-width: 180px;
-    max-height: 180px;
-    display: block;
-    border-radius: 4px;
-    margin-bottom: 4px;
-  }
-  #pick-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 2000;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-  }
-  #pick-modal.open { display: flex; }
-  .pick-panel {
-    background: var(--panel);
-    border-radius: 8px;
-    padding: 16px;
-    width: min(500px, 90vw);
-  }
-  .pick-panel p {
-    font-size: 0.85rem;
-    margin-top: 0;
-  }
-  #pick-map {
-    height: 300px;
-    border-radius: 6px;
-    margin-bottom: 12px;
-  }
-  .pick-panel .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-  }
-  .pick-panel button {
-    padding: 8px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    background: white;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  .pick-panel button.primary {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
-  }
-  .pick-panel button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .empty-hint {
-    font-size: 0.8rem;
-    color: var(--muted);
     text-align: center;
-    padding: 20px 0;
+    padding: 24px;
   }
+  #screen-title h1 {
+    font-size: clamp(1.4rem, 5vw, 2.4rem);
+    color: var(--accent);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  #screen-title .sub {
+    color: var(--muted);
+    margin-bottom: 28px;
+    font-size: 0.9rem;
+  }
+  .primary-btn {
+    background: linear-gradient(180deg, var(--accent), var(--accent-dim));
+    color: #1b1611;
+    border: none;
+    padding: 14px 36px;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #5c4a24;
+  }
+  .primary-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #5c4a24; }
+  .rules-box {
+    margin-top: 32px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    max-width: 480px;
+    text-align: left;
+    font-size: 0.82rem;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .rules-box b { color: var(--text); }
+
+  /* ---- ゲーム画面 ---- */
+  #screen-game {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 10px 10px 18px;
+  }
+  header.hud {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    align-items: center;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+  }
+  header.hud .depth {
+    font-weight: bold;
+    color: var(--accent);
+    font-size: 0.95rem;
+  }
+  header.hud .hp-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #hp-bar {
+    width: 90px;
+    height: 8px;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  #hp-bar-fill {
+    height: 100%;
+    background: var(--hp-good);
+    width: 100%;
+  }
+
+  #dungeon {
+    --cols: 31;
+    --rows: 17;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), 1fr);
+    grid-template-rows: repeat(var(--rows), 1fr);
+    width: 100%;
+    aspect-ratio: var(--cols) / var(--rows);
+    background: var(--wall);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(9px, 2.3vw, 20px);
+    line-height: 1;
+  }
+  .cell.wall { background: var(--wall); }
+  .cell.floor { background: var(--floor); }
+  .cell.floor.stairs { background: var(--stairs); position: relative; }
+  .cell.floor.stairs::before {
+    content: "▼";
+    color: var(--accent);
+    font-size: clamp(8px, 1.8vw, 16px);
+  }
+  .cell.has-player, .cell.has-monster { background: var(--floor); }
+
+  .panels {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    flex: 1 1 260px;
+    min-width: 220px;
+  }
+  .panel h2 {
+    font-size: 0.8rem;
+    color: var(--accent);
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  #log-list {
+    height: 120px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  #log-list div:last-child { color: var(--text); }
+
+  #inventory-list { font-size: 0.8rem; min-height: 40px; }
+  .inv-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .inv-item .inv-icon { font-size: 1.1rem; }
+  .inv-item .inv-name { flex: 1; }
+  .inv-use {
+    background: var(--panel-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+  .inv-use:hover { border-color: var(--accent); }
+  .empty-hint { color: var(--muted); font-size: 0.78rem; text-align: center; padding: 10px 0; }
+
+  .dpad-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 46px);
+    grid-template-rows: repeat(3, 46px);
+    gap: 4px;
+  }
+  .dpad button, .wait-btn {
+    background: var(--panel-light);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .dpad button:active, .wait-btn:active { background: var(--accent-dim); }
+  .dpad .up { grid-column: 2; grid-row: 1; }
+  .dpad .left { grid-column: 1; grid-row: 2; }
+  .dpad .wait-center { grid-column: 2; grid-row: 2; font-size: 0.7rem; }
+  .dpad .right { grid-column: 3; grid-row: 2; }
+  .dpad .down { grid-column: 2; grid-row: 3; }
+
+  /* ---- ゲームオーバー画面 ---- */
+  #screen-gameover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+  }
+  #screen-gameover h1 { color: var(--hp-bad); font-size: 1.6rem; margin-bottom: 18px; }
+  #screen-gameover .result {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 30px;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+    line-height: 2;
+  }
+  #screen-gameover .result b { color: var(--accent); }
 </style>
 </head>
 <body>
-<header>
-  <h1>旅の記録マップ</h1>
-  <div class="stats" id="stats">訪問地 0 件</div>
-</header>
 
-<div class="layout">
-  <div id="map"></div>
-  <aside>
-    <div class="upload-box">
-      <label for="photo-input">写真を選んでアップロード</label>
-      <input type="file" id="photo-input" accept="image/*" multiple>
-      <p>写真のEXIF位置情報から自動で場所を記録します。<br>位置情報がない写真は地図上で場所を選べます。</p>
-    </div>
-    <div id="status"></div>
-    <div id="entry-list"></div>
-  </aside>
+<div id="screen-title" class="screen active">
+  <h1>⚔️ 不思議のダンジョン風ローグライク</h1>
+  <div class="sub">潜るたびに地形が変わる、一回勝負の地下迷宮</div>
+  <button class="primary-btn" id="btn-start">冒険を始める</button>
+  <div class="rules-box">
+    <div><b>操作方法</b></div>
+    <div>矢印キー / WASD / 画面下のボタンで移動します。</div>
+    <div>モンスターがいる方向へ進むと攻撃になります。</div>
+    <div>アイテムは上に乗ると自動で拾います。武器・盾は即座に装備され、薬草や木の実は持ち物に入ります。</div>
+    <div>Space または Enter でその場で足踏みできます。</div>
+    <div>満腹度が0になると体力が減り始めるので、木の実で回復しましょう。</div>
+    <div>階段（▼）に乗ると次の階層へ進みます。力尽きると最初からやり直しです。</div>
+  </div>
 </div>
 
-<div id="pick-modal">
-  <div class="pick-panel">
-    <p id="pick-desc">この写真には位置情報がありませんでした。地図をクリックして訪問地を指定してください。</p>
-    <div id="pick-map"></div>
-    <div class="actions">
-      <button id="pick-cancel">スキップ</button>
-      <button id="pick-confirm" class="primary" disabled>この場所に登録</button>
+<div id="screen-game" class="screen">
+  <header class="hud">
+    <div class="depth">地下 <span id="stat-depth">1</span> 階</div>
+    <div class="hp-wrap">HP <span id="stat-hp">30/30</span><div id="hp-bar"><div id="hp-bar-fill"></div></div></div>
+    <div>Lv <span id="stat-level">1</span></div>
+    <div>攻 <span id="stat-atk">5</span> / 防 <span id="stat-def">2</span></div>
+    <div>満腹 <span id="stat-satiety">100</span></div>
+    <div>💰 <span id="stat-gold">0</span></div>
+  </header>
+
+  <div id="dungeon" style="--cols:31;--rows:17"></div>
+
+  <div class="dpad-wrap">
+    <div class="dpad">
+      <button class="up" id="btn-up">▲</button>
+      <button class="left" id="btn-left">◀</button>
+      <button class="wait-center" id="btn-wait">待つ</button>
+      <button class="right" id="btn-right">▶</button>
+      <button class="down" id="btn-down">▼</button>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>冒険の記録</h2>
+      <div id="log-list"></div>
+    </div>
+    <div class="panel">
+      <h2>持ち物</h2>
+      <div id="inventory-list"></div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/lite.umd.js"></script>
+<div id="screen-gameover" class="screen">
+  <h1>・・・目の前が真っ暗になった</h1>
+  <div class="result">
+    到達階層: <b id="final-depth">1</b> 階<br>
+    最終レベル: <b id="final-level">1</b><br>
+    所持金: <b id="final-gold">0</b> G
+  </div>
+  <button class="primary-btn" id="btn-retry">もう一度挑戦する</button>
+</div>
+
 <script>
 (function () {
   "use strict";
 
-  const DB_NAME = "travel-map-db";
-  const STORE = "entries";
-  let db;
+  const COLS = 31, ROWS = 17;
+  const TILE = { WALL: 0, FLOOR: 1, STAIRS: 2 };
 
-  function openDB() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => {
-        const database = req.result;
-        if (!database.objectStoreNames.contains(STORE)) {
-          database.createObjectStore(STORE, { keyPath: "id" });
+  const MONSTER_TYPES = [
+    { name: "スライム", emoji: "🟢", hp: 6, atk: 3, def: 0, exp: 2, minDepth: 1 },
+    { name: "コウモリ", emoji: "🦇", hp: 5, atk: 4, def: 0, exp: 3, minDepth: 1 },
+    { name: "ネズミ", emoji: "🐀", hp: 4, atk: 3, def: 1, exp: 2, minDepth: 1 },
+    { name: "ゴブリン", emoji: "👺", hp: 10, atk: 6, def: 2, exp: 6, minDepth: 3 },
+    { name: "クモ", emoji: "🕷️", hp: 8, atk: 7, def: 1, exp: 6, minDepth: 3 },
+    { name: "オーク", emoji: "👹", hp: 16, atk: 9, def: 4, exp: 12, minDepth: 6 },
+    { name: "ゾンビ", emoji: "🧟", hp: 20, atk: 8, def: 3, exp: 14, minDepth: 6 },
+    { name: "ワイバーン", emoji: "🐲", hp: 26, atk: 12, def: 6, exp: 22, minDepth: 9 },
+    { name: "ドラゴン", emoji: "🐉", hp: 40, atk: 16, def: 9, exp: 40, minDepth: 12 },
+  ];
+
+  let state = "title";
+  let grid, rooms, monsters, itemsOnMap, player, depth, messageLog;
+
+  const dungeonEl = document.getElementById("dungeon");
+  const logEl = document.getElementById("log-list");
+  const invEl = document.getElementById("inventory-list");
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function rndRange(a, b) { return a + rnd(b - a + 1); }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function showScreen(name) {
+    document.querySelectorAll(".screen").forEach((el) => el.classList.remove("active"));
+    document.getElementById("screen-" + name).classList.add("active");
+  }
+
+  // ---------------- プレイヤー ----------------
+  function newPlayer() {
+    return {
+      x: 0, y: 0, hp: 30, maxHp: 30, atk: 5, def: 2,
+      level: 1, exp: 0, nextExp: 15, satiety: 100, gold: 0,
+      inventory: [],
+    };
+  }
+
+  // ---------------- ダンジョン生成 ----------------
+  function generateDungeon() {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(TILE.WALL));
+    rooms = [];
+    const target = rndRange(5, 7);
+    let attempts = 0;
+    while (rooms.length < target && attempts < 120) {
+      attempts++;
+      const w = rndRange(4, 7);
+      const h = rndRange(3, 5);
+      const x = rndRange(1, COLS - w - 2);
+      const y = rndRange(1, ROWS - h - 2);
+      const overlaps = rooms.some((r) =>
+        x - 1 < r.x + r.w + 1 && x + w + 1 > r.x - 1 &&
+        y - 1 < r.y + r.h + 1 && y + h + 1 > r.y - 1
+      );
+      if (overlaps) continue;
+      rooms.push({ x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2) });
+    }
+    if (rooms.length < 2) {
+      rooms.push({ x: 1, y: 1, w: 4, h: 3, cx: 2, cy: 2 });
+      rooms.push({ x: COLS - 6, y: ROWS - 5, w: 4, h: 3, cx: COLS - 4, cy: ROWS - 3 });
+    }
+    for (const r of rooms) {
+      for (let y = r.y; y < r.y + r.h; y++) {
+        for (let x = r.x; x < r.x + r.w; x++) {
+          grid[y][x] = TILE.FLOOR;
         }
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function tx(mode) {
-    return db.transaction(STORE, mode).objectStore(STORE);
-  }
-
-  function addEntry(entry) {
-    return new Promise((resolve, reject) => {
-      const req = tx("readwrite").add(entry);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function deleteEntry(id) {
-    return new Promise((resolve, reject) => {
-      const req = tx("readwrite").delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function getAllEntries() {
-    return new Promise((resolve, reject) => {
-      const req = tx("readonly").getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  // ---- 地図 ----
-  const map = L.map("map").setView([36.2048, 138.2529], 5); // 日本全体
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "&copy; OpenStreetMap contributors",
-    maxZoom: 19,
-  }).addTo(map);
-
-  const markers = new Map(); // id -> marker
-
-  function addMarkerForEntry(entry) {
-    const marker = L.marker([entry.lat, entry.lng]).addTo(map);
-    const dateStr = entry.date ? new Date(entry.date).toLocaleDateString("ja-JP") : "";
-    const url = URL.createObjectURL(entry.photo);
-    marker.bindPopup(
-      `<img class="popup-photo" src="${url}"><div>${dateStr}</div>`
-    );
-    markers.set(entry.id, marker);
-  }
-
-  function removeMarker(id) {
-    const m = markers.get(id);
-    if (m) {
-      map.removeLayer(m);
-      markers.delete(id);
-    }
-  }
-
-  // ---- 一覧UI ----
-  const listEl = document.getElementById("entry-list");
-  const statsEl = document.getElementById("stats");
-  const statusEl = document.getElementById("status");
-
-  async function refreshList() {
-    const entries = await getAllEntries();
-    entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    statsEl.textContent = `訪問地 ${entries.length} 件`;
-    listEl.innerHTML = "";
-    if (entries.length === 0) {
-      listEl.innerHTML = '<div class="empty-hint">まだ記録がありません。写真をアップロードしてみましょう。</div>';
-      return;
-    }
-    for (const entry of entries) {
-      const url = URL.createObjectURL(entry.photo);
-      const dateStr = entry.date ? new Date(entry.date).toLocaleDateString("ja-JP") : "日時不明";
-      const div = document.createElement("div");
-      div.className = "entry";
-      div.innerHTML = `
-        <img src="${url}" alt="訪問地の写真">
-        <div class="meta">
-          <div class="place">${entry.lat.toFixed(3)}, ${entry.lng.toFixed(3)}</div>
-          <div class="date">${dateStr}</div>
-          <button class="del" data-id="${entry.id}">削除</button>
-        </div>
-      `;
-      div.querySelector("img").addEventListener("click", () => {
-        map.setView([entry.lat, entry.lng], 12);
-        markers.get(entry.id)?.openPopup();
-      });
-      div.querySelector(".del").addEventListener("click", async (e) => {
-        e.stopPropagation();
-        await deleteEntry(entry.id);
-        removeMarker(entry.id);
-        refreshList();
-      });
-      listEl.appendChild(div);
-    }
-  }
-
-  // ---- 手動位置選択モーダル ----
-  const modal = document.getElementById("pick-modal");
-  const confirmBtn = document.getElementById("pick-confirm");
-  const cancelBtn = document.getElementById("pick-cancel");
-  let pickMap, pickMarker, pickResolve;
-
-  function openPickModal() {
-    modal.classList.add("open");
-    if (!pickMap) {
-      pickMap = L.map("pick-map").setView([36.2048, 138.2529], 5);
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-      }).addTo(pickMap);
-      pickMap.on("click", (e) => {
-        if (pickMarker) pickMap.removeLayer(pickMarker);
-        pickMarker = L.marker(e.latlng).addTo(pickMap);
-        confirmBtn.disabled = false;
-        confirmBtn.dataset.lat = e.latlng.lat;
-        confirmBtn.dataset.lng = e.latlng.lng;
-      });
-    }
-    setTimeout(() => pickMap.invalidateSize(), 50);
-  }
-
-  function closePickModal() {
-    modal.classList.remove("open");
-    confirmBtn.disabled = true;
-    if (pickMarker) {
-      pickMap.removeLayer(pickMarker);
-      pickMarker = null;
-    }
-  }
-
-  function pickLocation() {
-    return new Promise((resolve) => {
-      pickResolve = resolve;
-      openPickModal();
-    });
-  }
-
-  confirmBtn.addEventListener("click", () => {
-    const lat = parseFloat(confirmBtn.dataset.lat);
-    const lng = parseFloat(confirmBtn.dataset.lng);
-    closePickModal();
-    pickResolve({ lat, lng });
-  });
-
-  cancelBtn.addEventListener("click", () => {
-    closePickModal();
-    pickResolve(null);
-  });
-
-  // ---- 写真アップロード処理 ----
-  const photoInput = document.getElementById("photo-input");
-
-  photoInput.addEventListener("change", async (e) => {
-    const files = Array.from(e.target.files || []);
-    photoInput.value = "";
-    let added = 0;
-    for (const file of files) {
-      statusEl.textContent = `処理中: ${file.name}`;
-      let coords = null;
-      let dateTaken = null;
-      try {
-        const gps = await exifr.gps(file);
-        if (gps && typeof gps.latitude === "number") {
-          coords = { lat: gps.latitude, lng: gps.longitude };
-        }
-        const exifData = await exifr.parse(file, ["DateTimeOriginal"]);
-        if (exifData && exifData.DateTimeOriginal) {
-          dateTaken = new Date(exifData.DateTimeOriginal).getTime();
-        }
-      } catch (err) {
-        // EXIF読み取り失敗時は位置情報なしとして扱う
       }
+    }
+    for (let i = 0; i < rooms.length - 1; i++) {
+      carveCorridor(rooms[i].cx, rooms[i].cy, rooms[i + 1].cx, rooms[i + 1].cy);
+    }
+    const last = rooms[rooms.length - 1];
+    grid[last.cy][last.cx] = TILE.STAIRS;
+    const first = rooms[0];
+    return { x: first.cx, y: first.cy };
+  }
 
-      if (!coords) {
-        coords = await pickLocation();
+  function carveH(x1, x2, y) {
+    const a = Math.min(x1, x2), b = Math.max(x1, x2);
+    for (let x = a; x <= b; x++) if (grid[y][x] === TILE.WALL) grid[y][x] = TILE.FLOOR;
+  }
+  function carveV(y1, y2, x) {
+    const a = Math.min(y1, y2), b = Math.max(y1, y2);
+    for (let y = a; y <= b; y++) if (grid[y][x] === TILE.WALL) grid[y][x] = TILE.FLOOR;
+  }
+  function carveCorridor(x1, y1, x2, y2) {
+    if (rnd(2) === 0) { carveH(x1, x2, y1); carveV(y1, y2, x2); }
+    else { carveV(y1, y2, x1); carveH(x1, x2, y2); }
+  }
+
+  function isTileFree(x, y) {
+    if (grid[y][x] !== TILE.FLOOR) return false;
+    if (player.x === x && player.y === y) return false;
+    if (monsters.some((m) => m.x === x && m.y === y)) return false;
+    if (itemsOnMap.some((i) => i.x === x && i.y === y)) return false;
+    return true;
+  }
+
+  function pickFreeTile(excludeFirstRoom) {
+    const pool = [];
+    rooms.forEach((r, idx) => {
+      if (excludeFirstRoom && idx === 0) return;
+      for (let y = r.y; y < r.y + r.h; y++) {
+        for (let x = r.x; x < r.x + r.w; x++) {
+          if (isTileFree(x, y)) pool.push({ x, y });
+        }
       }
-      if (!coords) {
-        statusEl.textContent = `${file.name} はスキップしました`;
+    });
+    if (pool.length === 0) return null;
+    return pool[rnd(pool.length)];
+  }
+
+  function pickMonsterType() {
+    const eligible = MONSTER_TYPES.filter((t) => t.minDepth <= depth);
+    const pool = eligible.length > 0 ? eligible : [MONSTER_TYPES[0]];
+    return pool[rnd(pool.length)];
+  }
+
+  function makeMonster(type, x, y) {
+    const scale = 1 + (depth - 1) * 0.08;
+    return {
+      name: type.name, emoji: type.emoji,
+      hp: Math.round(type.hp * scale), maxHp: Math.round(type.hp * scale),
+      atk: Math.round(type.atk * scale), def: Math.round(type.def * scale),
+      exp: type.exp + depth, x, y,
+    };
+  }
+
+  function placeMonsters() {
+    monsters = [];
+    const count = clamp(2 + Math.floor(depth / 2) + rnd(2), 1, 12);
+    for (let i = 0; i < count; i++) {
+      const spot = pickFreeTile(true);
+      if (!spot) break;
+      monsters.push(makeMonster(pickMonsterType(), spot.x, spot.y));
+    }
+  }
+
+  function randomItem() {
+    const roll = rnd(100);
+    if (roll < 30) return { type: "gold", name: "金塊", emoji: "💰", amount: rndRange(5, 15) * Math.ceil(depth / 2) };
+    if (roll < 55) return { type: "potion", name: "薬草", emoji: "🧪", amount: 15 };
+    if (roll < 75) return { type: "food", name: "木の実", emoji: "🍖", amount: 35 };
+    if (roll < 90) return { type: "weapon", name: "剣", emoji: "⚔️", bonus: rndRange(1, 3) };
+    return { type: "shield", name: "盾", emoji: "🛡️", bonus: rndRange(1, 2) };
+  }
+
+  function placeItems() {
+    itemsOnMap = [];
+    const count = rndRange(3, 5);
+    for (let i = 0; i < count; i++) {
+      const spot = pickFreeTile(false);
+      if (!spot) break;
+      itemsOnMap.push(Object.assign(randomItem(), { x: spot.x, y: spot.y }));
+    }
+  }
+
+  // ---------------- ログ ----------------
+  function log(msg) {
+    messageLog.push(msg);
+    if (messageLog.length > 60) messageLog.shift();
+    renderLog();
+  }
+
+  // ---------------- 進行 ----------------
+  function enterDepth(d) {
+    depth = d;
+    const start = generateDungeon();
+    player.x = start.x;
+    player.y = start.y;
+    placeMonsters();
+    placeItems();
+    log(`地下${d}階に降り立った。`);
+  }
+
+  function startGame() {
+    player = newPlayer();
+    messageLog = [];
+    state = "playing";
+    showScreen("game");
+    enterDepth(1);
+    render();
+  }
+
+  function pickupItem(item) {
+    switch (item.type) {
+      case "gold":
+        player.gold += item.amount;
+        log(`${item.amount}Gの金塊を手に入れた。`);
+        break;
+      case "weapon":
+        player.atk += item.bonus;
+        log(`${item.name}を手に入れて装備した。攻撃力+${item.bonus}`);
+        break;
+      case "shield":
+        player.def += item.bonus;
+        log(`${item.name}を手に入れて装備した。防御力+${item.bonus}`);
+        break;
+      default:
+        if (player.inventory.length >= 8) {
+          log(`荷物がいっぱいで${item.name}を持てなかった。`);
+        } else {
+          player.inventory.push(item);
+          log(`${item.name}を拾った。`);
+        }
+    }
+  }
+
+  function useItem(idx) {
+    if (state !== "playing") return;
+    const item = player.inventory[idx];
+    if (!item) return;
+    if (item.type === "potion") {
+      const before = player.hp;
+      player.hp = Math.min(player.maxHp, player.hp + item.amount);
+      log(`${item.name}を使った。HPが${player.hp - before}回復した。`);
+    } else if (item.type === "food") {
+      player.satiety = Math.min(100, player.satiety + item.amount);
+      log(`${item.name}を食べた。満腹度が回復した。`);
+    }
+    player.inventory.splice(idx, 1);
+    renderInventory();
+    endTurn();
+  }
+
+  function gainExp(exp) {
+    player.exp += exp;
+    while (player.exp >= player.nextExp) {
+      player.exp -= player.nextExp;
+      player.level++;
+      player.maxHp += 6;
+      player.hp = player.maxHp;
+      player.atk += 1;
+      if (player.level % 2 === 0) player.def += 1;
+      player.nextExp = Math.round(player.nextExp * 1.3) + 5;
+      log(`レベルが${player.level}に上がった!`);
+    }
+  }
+
+  function playerAttack(mon) {
+    const dmg = Math.max(1, player.atk - mon.def + rndRange(-1, 2));
+    mon.hp -= dmg;
+    log(`${mon.name}に${dmg}のダメージ!`);
+    if (mon.hp <= 0) {
+      log(`${mon.name}を倒した!`);
+      gainExp(mon.exp);
+      monsters = monsters.filter((m) => m !== mon);
+    }
+  }
+
+  function monsterAttack(mon) {
+    const dmg = Math.max(1, mon.atk - player.def + rndRange(-1, 2));
+    player.hp -= dmg;
+    log(`${mon.name}の攻撃!${dmg}のダメージを受けた。`);
+  }
+
+  function canMonsterMove(x, y) {
+    if (grid[y] === undefined || grid[y][x] === undefined) return false;
+    if (grid[y][x] === TILE.WALL) return false;
+    if (player.x === x && player.y === y) return false;
+    if (monsters.some((m) => m.x === x && m.y === y)) return false;
+    return true;
+  }
+
+  function monstersAct() {
+    for (const mon of monsters) {
+      const dx = player.x - mon.x, dy = player.y - mon.y;
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist === 1) {
+        monsterAttack(mon);
         continue;
       }
-
-      const entry = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        photo: file,
-        lat: coords.lat,
-        lng: coords.lng,
-        date: dateTaken || file.lastModified || Date.now(),
-        createdAt: Date.now(),
-      };
-      await addEntry(entry);
-      addMarkerForEntry(entry);
-      added++;
+      if (dist <= 6) {
+        let mx = 0, my = 0;
+        if (Math.abs(dx) > Math.abs(dy)) mx = Math.sign(dx); else my = Math.sign(dy);
+        const nx = mon.x + mx, ny = mon.y + my;
+        if (canMonsterMove(nx, ny)) { mon.x = nx; mon.y = ny; continue; }
+        const nx2 = mon.x + Math.sign(dx), ny2 = mon.y;
+        if (Math.sign(dx) !== 0 && canMonsterMove(nx2, ny2)) { mon.x = nx2; mon.y = ny2; continue; }
+        const nx3 = mon.x, ny3 = mon.y + Math.sign(dy);
+        if (Math.sign(dy) !== 0 && canMonsterMove(nx3, ny3)) { mon.x = nx3; mon.y = ny3; }
+      } else if (rnd(4) === 0) {
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        const [wx, wy] = dirs[rnd(4)];
+        const nx = mon.x + wx, ny = mon.y + wy;
+        if (canMonsterMove(nx, ny)) { mon.x = nx; mon.y = ny; }
+      }
     }
-    statusEl.textContent = added > 0 ? `${added} 件を登録しました` : "";
-    refreshList();
+  }
+
+  function endTurn() {
+    player.satiety = Math.max(0, player.satiety - 1);
+    if (player.satiety <= 0) {
+      player.hp -= 2;
+      log("お腹が空いて体力が減っている…");
+    }
+    monstersAct();
+    if (player.hp <= 0) {
+      gameOver();
+      return;
+    }
+    render();
+  }
+
+  function tryMove(dx, dy) {
+    if (state !== "playing") return;
+    const nx = player.x + dx, ny = player.y + dy;
+    if (grid[ny] === undefined || grid[ny][nx] === undefined) return;
+    if (grid[ny][nx] === TILE.WALL) return;
+    const mon = monsters.find((m) => m.x === nx && m.y === ny);
+    if (mon) {
+      playerAttack(mon);
+      endTurn();
+      return;
+    }
+    player.x = nx;
+    player.y = ny;
+    const itemIdx = itemsOnMap.findIndex((it) => it.x === nx && it.y === ny);
+    if (itemIdx >= 0) {
+      pickupItem(itemsOnMap[itemIdx]);
+      itemsOnMap.splice(itemIdx, 1);
+    }
+    if (grid[ny][nx] === TILE.STAIRS) {
+      log(`階段を見つけて地下${depth + 1}階へ進んだ。`);
+      enterDepth(depth + 1);
+      render();
+      return;
+    }
+    endTurn();
+  }
+
+  function wait() {
+    if (state !== "playing") return;
+    log("その場で足踏みした。");
+    endTurn();
+  }
+
+  function gameOver() {
+    state = "gameover";
+    log("・・・目の前が真っ暗になった。");
+    document.getElementById("final-depth").textContent = depth;
+    document.getElementById("final-level").textContent = player.level;
+    document.getElementById("final-gold").textContent = player.gold;
+    showScreen("gameover");
+  }
+
+  // ---------------- 描画 ----------------
+  function renderGrid() {
+    let html = "";
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        const t = grid[y][x];
+        let cls = "cell ";
+        let content = "";
+        if (t === TILE.WALL) cls += "wall";
+        else if (t === TILE.STAIRS) cls += "floor stairs";
+        else cls += "floor";
+        if (player.x === x && player.y === y) {
+          content = "🧙";
+          cls += " has-player";
+        } else {
+          const mon = monsters.find((m) => m.x === x && m.y === y);
+          if (mon) {
+            content = mon.emoji;
+            cls += " has-monster";
+          } else {
+            const it = itemsOnMap.find((i) => i.x === x && i.y === y);
+            if (it) content = it.emoji;
+          }
+        }
+        html += `<div class="${cls}">${content}</div>`;
+      }
+    }
+    dungeonEl.innerHTML = html;
+  }
+
+  function renderStats() {
+    document.getElementById("stat-depth").textContent = depth;
+    document.getElementById("stat-hp").textContent = `${Math.max(0, player.hp)}/${player.maxHp}`;
+    document.getElementById("stat-level").textContent = player.level;
+    document.getElementById("stat-satiety").textContent = player.satiety;
+    document.getElementById("stat-gold").textContent = player.gold;
+    document.getElementById("stat-atk").textContent = player.atk;
+    document.getElementById("stat-def").textContent = player.def;
+    const ratio = clamp(player.hp / player.maxHp, 0, 1);
+    const fill = document.getElementById("hp-bar-fill");
+    fill.style.width = `${ratio * 100}%`;
+    fill.style.background = ratio < 0.3 ? "var(--hp-bad)" : ratio < 0.6 ? "var(--hp-mid)" : "var(--hp-good)";
+  }
+
+  function renderInventory() {
+    if (player.inventory.length === 0) {
+      invEl.innerHTML = '<div class="empty-hint">持ち物はありません</div>';
+      return;
+    }
+    invEl.innerHTML = player.inventory.map((it, idx) => `
+      <div class="inv-item">
+        <span class="inv-icon">${it.emoji}</span>
+        <span class="inv-name">${it.name}</span>
+        <button class="inv-use" data-idx="${idx}">使う</button>
+      </div>`).join("");
+    invEl.querySelectorAll(".inv-use").forEach((btn) => {
+      btn.addEventListener("click", () => useItem(parseInt(btn.dataset.idx, 10)));
+    });
+  }
+
+  function renderLog() {
+    logEl.innerHTML = messageLog.slice(-30).map((m) => `<div>${m}</div>`).join("");
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function render() {
+    renderGrid();
+    renderStats();
+    renderInventory();
+  }
+
+  // ---------------- 入力 ----------------
+  window.addEventListener("keydown", (e) => {
+    if (state !== "playing") return;
+    switch (e.key) {
+      case "ArrowUp": case "w": case "W": tryMove(0, -1); e.preventDefault(); break;
+      case "ArrowDown": case "s": case "S": tryMove(0, 1); e.preventDefault(); break;
+      case "ArrowLeft": case "a": case "A": tryMove(-1, 0); e.preventDefault(); break;
+      case "ArrowRight": case "d": case "D": tryMove(1, 0); e.preventDefault(); break;
+      case " ": case "Enter": wait(); e.preventDefault(); break;
+    }
   });
 
-  // ---- 初期化 ----
-  (async function init() {
-    db = await openDB();
-    const entries = await getAllEntries();
-    for (const entry of entries) {
-      addMarkerForEntry(entry);
-    }
-    if (entries.length > 0) {
-      const group = L.featureGroup([...markers.values()]);
-      map.fitBounds(group.getBounds().pad(0.2));
-    }
-    refreshList();
-  })();
+  document.getElementById("btn-up").addEventListener("click", () => tryMove(0, -1));
+  document.getElementById("btn-down").addEventListener("click", () => tryMove(0, 1));
+  document.getElementById("btn-left").addEventListener("click", () => tryMove(-1, 0));
+  document.getElementById("btn-right").addEventListener("click", () => tryMove(1, 0));
+  document.getElementById("btn-wait").addEventListener("click", wait);
+
+  document.getElementById("btn-start").addEventListener("click", startGame);
+  document.getElementById("btn-retry").addEventListener("click", startGame);
 })();
 </script>
 </body>
